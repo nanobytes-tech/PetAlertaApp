@@ -1,0 +1,22 @@
+# Dependency directories
+node_modules/
+.expo/
+
+# Build and cache files
+.DS_Store
+*.apk
+*.aab
+*.ipa
+*.ipr
+*.iws
+*.iml
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local environment variables
+.env
+.env.local
+.env.*.local
