@@ -142,6 +142,16 @@
                 const mainContent = document.getElementById('main-content');
                 const tabs = document.querySelectorAll('.tab');
                 const headerTitle = document.getElementById('header-title');
+                
+                function updateActiveView() {
+                    const activeTab = document.querySelector('.tab-active')?.dataset.tab;
+                    if (!activeTab) return;
+                    
+                    if (activeTab === 'map') renderMap();
+                    if (activeTab === 'alerts') renderAlerts();
+                    if (activeTab === 'profile') renderProfile(user);
+                }
+
                 function switchTab(tabName, petToEdit = null) {
                     tabs.forEach(t => t.classList.remove('tab-active'));
                     const activeTabEl = document.querySelector(`[data-tab="${tabName}"]`);
@@ -150,10 +160,8 @@
                     const template = document.getElementById(`${tabName}-template`);
                     if (template) mainContent.appendChild(template.content.cloneNode(true));
                     headerTitle.textContent = tabName.charAt(0).toUpperCase() + tabName.slice(1);
-                    if (tabName === 'map') renderMap();
-                    if (tabName === 'alerts') renderAlerts();
+                    updateActiveView(); // Renderiza o conteúdo da nova aba
                     if (tabName === 'report') setupReportForm(user, petToEdit);
-                    if (tabName === 'profile') renderProfile(user);
                 }
                 window.switchTab = switchTab;
                 tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
@@ -162,8 +170,7 @@
                 unsubscribePets = onSnapshot(q, (querySnapshot) => {
                     petsCache = [];
                     querySnapshot.forEach((doc) => petsCache.push({ id: doc.id, ...doc.data() }));
-                    const activeTab = document.querySelector('.tab-active')?.dataset.tab;
-                    if(activeTab) switchTab(activeTab);
+                    updateActiveView();
                 });
                 switchTab('map');
             }
@@ -246,18 +253,32 @@
             }
 
             function renderMap() {
-                if (map) map.remove();
-                navigator.geolocation.getCurrentPosition(position => {
-                    const { latitude, longitude } = position.coords;
-                    map = L.map('map-container').setView([latitude, longitude], 13);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                if (map) { map.remove(); map = null; }
+                const mapContainer = document.getElementById('map-container');
+                if (!mapContainer) return;
+                
+                const renderMarkers = (currentMap) => {
                     const filteredPets = petsCache.filter(pet => typeFilter === 'Todos' || pet.type === typeFilter);
                     filteredPets.forEach(pet => {
                         const icon = L.divIcon({ html: `<img src="${pet.photoUri}" style="width: 40px; height: 40px; border-radius: 50%; border: 3px solid ${pet.isFound ? '#28a745' : '#f4511e'}; box-shadow: 0 0 5px rgba(0,0,0,0.5);">`, className: '', iconSize: [40, 40] });
-                        const marker = L.marker([pet.location.latitude, pet.location.longitude], { icon }).addTo(map);
+                        const marker = L.marker([pet.location.latitude, pet.location.longitude], { icon }).addTo(currentMap);
                         marker.on('click', () => showDetailsModal(pet));
                     });
-                }, () => { map = L.map('map-container').setView([-16.72, -43.86], 13); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map); });
+                };
+                
+                const fallbackMap = () => {
+                    map = L.map(mapContainer).setView([-16.72, -43.86], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                    renderMarkers(map);
+                };
+
+                navigator.geolocation.getCurrentPosition(position => {
+                    const { latitude, longitude } = position.coords;
+                    map = L.map(mapContainer).setView([latitude, longitude], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                    renderMarkers(map);
+                }, fallbackMap);
+
                 document.querySelectorAll('.map-filter-btn').forEach(btn => {
                     if (btn.dataset.filter === typeFilter) btn.classList.add('active-filter');
                     btn.onclick = () => { typeFilter = btn.dataset.filter; renderMap(); };
@@ -357,7 +378,6 @@
                 });
             }
 
-            // --- LÓGICA DE ARRANQUE E EVENT LISTENERS ---
             try {
                 app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
