@@ -9,8 +9,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <style>
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        /* A altura total é gerida pelo flexbox no container */
-        #app-container { display: flex; flex-direction: column; min-height: 100vh; }
+        #app-container { display: flex; flex-direction: column; height: 100vh; }
         #main-content { flex-grow: 1; overflow-y: auto; position: relative; }
         .leaflet-container { height: 100%; width: 100%; }
         .tab { transition: all 0.2s ease-in-out; }
@@ -25,9 +24,8 @@
 </head>
 <body class="bg-gray-100">
 
-    <!-- O container principal agora usa a largura total em ecrãs maiores -->
-    <div id="app-container" class="w-full md:max-w-md md:mx-auto md:shadow-lg">
-        <!-- Ecrãs de Configuração, Loading, Login, Registo (inalterados) -->
+    <div id="app-container" class="max-w-md mx-auto bg-white shadow-lg h-full">
+        <!-- ECRÃS DE INICIALIZAÇÃO -->
         <div id="config-screen" class="p-8 flex flex-col justify-center items-center h-full">
             <h1 class="text-2xl font-bold text-orange-500 mb-4">Configuração Inicial</h1>
             <p class="text-gray-600 mb-6 text-center">Por favor, cole o objeto de configuração do seu projeto Firebase abaixo. Isto só é necessário uma vez.</p>
@@ -39,6 +37,8 @@
             <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24 mb-4"></div>
             <p class="text-lg text-gray-600">A carregar...</p>
         </div>
+
+        <!-- ECRÃS DE AUTENTICAÇÃO -->
         <div id="login-screen" class="hidden p-8 flex flex-col justify-center h-full">
             <h1 class="text-3xl font-bold text-center mb-8">PetAlerta</h1>
             <input id="login-email" type="email" placeholder="Email" class="w-full p-3 mb-4 border rounded-lg">
@@ -54,7 +54,7 @@
             <button id="goto-login-btn" class="mt-4 text-orange-500">Já tem conta? Entre</button>
         </div>
 
-        <!-- Conteúdo Principal da App -->
+        <!-- CONTEÚDO PRINCIPAL DA APP -->
         <div id="main-app" class="hidden flex flex-col h-full">
             <header class="p-4 bg-orange-500 text-white flex justify-between items-center shadow-md">
                 <h1 class="text-xl font-bold">PetAlerta</h1>
@@ -74,7 +74,7 @@
         </div>
     </div>
 
-    <!-- Templates de Conteúdo das Abas -->
+    <!-- TEMPLATES DE CONTEÚDO DAS ABAS -->
     <template id="map-template">
         <div class="relative h-full w-full">
             <div id="map-filters" class="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-lg flex space-x-2">
@@ -86,13 +86,13 @@
         </div>
     </template>
     <template id="alerts-template">
-        <div class="p-4 md:p-6">
+        <div class="p-4">
             <input id="search-bar" type="text" placeholder="Pesquisar por nome..." class="w-full p-3 mb-4 border rounded-lg">
             <div id="alerts-list" class="space-y-3"></div>
         </div>
     </template>
     <template id="report-template">
-        <div class="p-4 md:p-6 space-y-4">
+        <div class="p-4 space-y-4">
             <h2 class="text-lg font-semibold">Reportar Animal Perdido</h2>
             <div><label class="block text-sm font-medium text-gray-700">Nome do Pet</label><input id="report-name" type="text" class="w-full p-2 border rounded-md"></div>
             <div><label class="block text-sm font-medium text-gray-700">Tipo</label><select id="report-type" class="w-full p-2 border rounded-md"><option>Cachorro</option><option>Gato</option><option>Outro</option></select></div>
