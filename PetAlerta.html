@@ -21,6 +21,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐾</text></svg>">
 </head>
 <body class="bg-gray-100">
 
@@ -146,7 +147,6 @@
                 function updateActiveView() {
                     const activeTab = document.querySelector('.tab-active')?.dataset.tab;
                     if (!activeTab) return;
-                    
                     if (activeTab === 'map') renderMap();
                     if (activeTab === 'alerts') renderAlerts();
                     if (activeTab === 'profile') renderProfile(user);
@@ -160,8 +160,11 @@
                     const template = document.getElementById(`${tabName}-template`);
                     if (template) mainContent.appendChild(template.content.cloneNode(true));
                     headerTitle.textContent = tabName.charAt(0).toUpperCase() + tabName.slice(1);
-                    updateActiveView(); // Renderiza o conteúdo da nova aba
-                    if (tabName === 'report') setupReportForm(user, petToEdit);
+                    if (tabName === 'report') {
+                        setupReportForm(user, petToEdit);
+                    } else {
+                        updateActiveView();
+                    }
                 }
                 window.switchTab = switchTab;
                 tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
