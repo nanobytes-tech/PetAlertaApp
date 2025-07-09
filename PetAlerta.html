@@ -24,7 +24,7 @@
 </head>
 <body class="bg-gray-100">
 
-    <div id="app-container" class="w-full lg:max-w-4xl lg:mx-auto bg-white lg:shadow-lg lg:my-8 lg:rounded-lg">
+    <div id="app-container" class="w-full bg-white">
         <!-- Ecrã de Loading -->
         <div id="loading-screen" class="p-8 flex flex-col justify-center items-center h-full">
             <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24 mb-4"></div>
@@ -49,12 +49,12 @@
 
         <!-- Conteúdo Principal da App -->
         <div id="main-app" class="hidden flex flex-col h-full">
-            <header class="p-4 bg-orange-500 text-white flex justify-between items-center shadow-md lg:rounded-t-lg">
+            <header class="p-4 bg-orange-500 text-white flex justify-between items-center shadow-md">
                 <h1 id="header-title" class="text-xl font-bold">PetAlerta</h1>
                 <button id="logout-btn" class="font-semibold">Sair</button>
             </header>
             <main id="main-content" class="flex-grow bg-gray-50"></main>
-            <nav class="grid grid-cols-4 border-t bg-white lg:rounded-b-lg">
+            <nav class="grid grid-cols-4 border-t bg-white">
                 <button data-tab="map" class="tab tab-active p-4 text-center border-b-2">Mapa</button>
                 <button data-tab="alerts" class="tab p-4 text-center border-b-2 border-transparent">Alertas</button>
                 <button data-tab="report" class="tab p-4 text-center border-b-2 border-transparent">Reportar</button>
@@ -121,15 +121,11 @@
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-        // --- INÍCIO DA LÓGICA PRINCIPAL ---
-
         document.addEventListener('DOMContentLoaded', () => {
-            // --- VARIÁVEIS GLOBAIS ---
             let searchTerm = '', typeFilter = 'Todos';
             const screens = { loading: document.getElementById('loading-screen'), login: document.getElementById('login-screen'), register: document.getElementById('register-screen'), main: document.getElementById('main-app'), };
-            let app, auth, db, storage, map, petsCache = [], unsubscribePets, currentUser;
+            let app, auth, db, storage, map, petsCache = [], unsubscribePets, currentUser, unsubscribeComments = null;
 
-            // --- CONFIGURAÇÃO DO FIREBASE (EMBUTIDA) ---
             const firebaseConfig = {
                 apiKey: "AIzaSyAaedVRibTzBXEzJZgeroR9LNgNs_H6e4k",
                 authDomain: "petalerta-f62d6.firebaseapp.com",
@@ -139,11 +135,9 @@
                 appId: "1:388011468744:web:f8867023355648132e02fd"
             };
 
-            // --- FUNÇÕES UTILITÁRIAS ---
             function showScreen(screenName) { Object.values(screens).forEach(s => s.classList.add('hidden')); if (screens[screenName]) screens[screenName].classList.remove('hidden'); }
             function setButtonLoading(button, isLoading, text = '') { if (isLoading) { button.disabled = true; button.innerHTML = '<div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-6 w-6 mx-auto"></div>'; } else { button.disabled = false; button.innerHTML = text || button.dataset.originalText; } }
 
-            // --- FUNÇÕES PRINCIPAIS DA APLICAÇÃO ---
             function setupApp(user) {
                 const mainContent = document.getElementById('main-content');
                 const tabs = document.querySelectorAll('.tab');
@@ -208,14 +202,46 @@
                         <h3 class="text-lg font-semibold mt-4 mb-2">Informações de Contacto</h3>
                         <p><strong class="font-semibold">Nome:</strong> ${pet.contactName}</p><p><strong class="font-semibold">Telefone:</strong> ${pet.contactPhone}</p>
                         <a href="tel:${pet.contactPhone}" class="mt-4 w-full block text-center bg-green-500 text-white font-bold py-3 rounded-lg hover:bg-green-600 transition">Ligar</a>
+                        <div class="my-4 border-t"></div>
+                        <h3 class="text-lg font-semibold mb-2">Comentários e Pistas</h3>
+                        <div id="comments-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto"></div>
+                        <div class="flex space-x-2"><input id="new-comment-input" class="flex-grow p-2 border rounded-md" placeholder="Deixe uma pista..."><button id="send-comment-btn" class="bg-orange-500 text-white px-4 py-2 rounded-md">Enviar</button></div>
                         ${isOwner ? `<h3 class="text-lg font-semibold mt-6 mb-2">Ações do Dono</h3><div class="space-y-2"><button id="edit-btn" class="w-full bg-gray-500 text-white font-bold py-3 rounded-lg hover:bg-gray-600 transition">Editar Alerta</button><button id="toggle-found-btn" class="w-full bg-blue-500 text-white font-bold py-3 rounded-lg hover:bg-blue-600 transition">${pet.isFound ? 'Marcar como Perdido' : 'Marcar como Encontrado'}</button><button id="delete-btn" class="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition">Apagar Alerta</button></div>` : ''}
                     </div>`;
                 modal.classList.remove('hidden');
-                document.getElementById('close-modal-btn').onclick = () => modal.classList.add('hidden');
+                
+                const closeModal = () => { if (unsubscribeComments) unsubscribeComments(); modal.classList.add('hidden'); };
+                document.getElementById('close-modal-btn').onclick = closeModal;
+                
+                const commentsList = document.getElementById('comments-list');
+                const commentsRef = collection(db, 'pets', pet.id, 'comments');
+                const qComments = query(commentsRef, orderBy('createdAt', 'asc'));
+                unsubscribeComments = onSnapshot(qComments, (snapshot) => {
+                    commentsList.innerHTML = '';
+                    if (snapshot.empty) { commentsList.innerHTML = '<p class="text-sm text-gray-500">Nenhum comentário ainda.</p>'; }
+                    snapshot.forEach(doc => {
+                        const comment = doc.data();
+                        const commentEl = document.createElement('div');
+                        commentEl.className = 'bg-gray-100 p-3 rounded-lg';
+                        commentEl.innerHTML = `<p class="font-semibold text-sm">${comment.authorName}</p><p>${comment.text}</p><p class="text-xs text-gray-400 text-right">${timeSince(comment.createdAt)}</p>`;
+                        commentsList.appendChild(commentEl);
+                    });
+                });
+
+                document.getElementById('send-comment-btn').onclick = async () => {
+                    const input = document.getElementById('new-comment-input');
+                    if (!input.value.trim()) return;
+                    await addDoc(commentsRef, {
+                        text: input.value, authorId: currentUser.uid,
+                        authorName: currentUser.email.split('@')[0], createdAt: serverTimestamp()
+                    });
+                    input.value = '';
+                };
+
                 if(isOwner) {
-                    document.getElementById('toggle-found-btn').onclick = async () => { await updateDoc(doc(db, 'pets', pet.id), { isFound: !pet.isFound }); modal.classList.add('hidden'); };
+                    document.getElementById('toggle-found-btn').onclick = async () => { await updateDoc(doc(db, 'pets', pet.id), { isFound: !pet.isFound }); closeModal(); };
                     document.getElementById('delete-btn').onclick = () => deletePet(pet);
-                    document.getElementById('edit-btn').onclick = () => { modal.classList.add('hidden'); window.switchTab('report', pet); };
+                    document.getElementById('edit-btn').onclick = () => { closeModal(); window.switchTab('report', pet); };
                 }
             }
 
@@ -225,7 +251,7 @@
                     const { latitude, longitude } = position.coords;
                     map = L.map('map-container').setView([latitude, longitude], 13);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                    const filteredPets = petsCache.filter(pet => typeFilter === 'Todos' || pet.type === pet.type);
+                    const filteredPets = petsCache.filter(pet => typeFilter === 'Todos' || pet.type === typeFilter);
                     filteredPets.forEach(pet => {
                         const icon = L.divIcon({ html: `<img src="${pet.photoUri}" style="width: 40px; height: 40px; border-radius: 50%; border: 3px solid ${pet.isFound ? '#28a745' : '#f4511e'}; box-shadow: 0 0 5px rgba(0,0,0,0.5);">`, className: '', iconSize: [40, 40] });
                         const marker = L.marker([pet.location.latitude, pet.location.longitude], { icon }).addTo(map);
@@ -263,7 +289,7 @@
                     if (reportMap) reportMap.remove();
                     reportMapContainer.innerHTML = '';
                     reportMap = L.map(reportMapContainer).setView([lat, lng], 13);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(reportMap);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
                     marker = L.marker([lat, lng], { draggable: true }).addTo(reportMap);
                     currentCoords = marker.getLatLng();
                     marker.on('dragend', (e) => { currentCoords = e.target.getLatLng(); });
