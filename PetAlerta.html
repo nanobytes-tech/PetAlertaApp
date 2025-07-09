@@ -290,7 +290,7 @@
                     reportMapContainer.innerHTML = '';
                     reportMap = L.map(reportMapContainer).setView([lat, lng], 13);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                    marker = L.marker([lat, lng], { draggable: true }).addTo(reportMap);
+                    marker = L.marker([lat, lng], { draggable: true }).addTo(map);
                     currentCoords = marker.getLatLng();
                     marker.on('dragend', (e) => { currentCoords = e.target.getLatLng(); });
                 };
